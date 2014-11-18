@@ -1,5 +1,5 @@
 // 	file: check_cisco_ucs.go
-// 	Version 0.2 (26.06.2013)
+// 	Version 0.3 (24.4.2014)
 //
 // check_cisco_ucs is a Nagios plugin made by Herwig Grimm (herwig.grimm at aon.at)
 // to monitor Cisco UCS rack and blade center hardware.
@@ -17,6 +17,7 @@
 // tested with:
 // 	1. UCSC-C240-M3S server and CIMC firmware version 1.5(1f).24
 // 	2. Cisco UCS Manager version 2.1(1e) and UCSB-B22-M3 blade center
+//  3. Cisco UCS Manager version 2.2(1b) and UCSB-B200-M3
 //
 // see also:
 //  	Cisco UCS Rack-Mount Servers CIMC XML API Programmer's Guide
@@ -30,6 +31,9 @@
 //		write errors to stdout instead of stderr,
 //		flag -E to show environment variables added
 //		flag -V to print plugin version added
+//
+//	Version 0.3 (24.4.2014)
+//		flag -z *OK if zero instances* added
 //
 // todo:
 // 	1. better error handling
@@ -50,6 +54,7 @@
 //	-d <level>		print debug, level: 1 errors only, 2 warnings and 3 informational messages
 //	-E 			print environment variables for debug purpose
 //	-V			print plugin version
+//	-z			true or false. if set to true the check will return OK status if zero instances where found. Default is false.
 //
 // usage examples:
 //
@@ -74,6 +79,10 @@
 //
 // 	$ ./check_cisco_ucs -H 10.18.64.10 -t dn -q sys/switch-B/slot-1/switch-ether/port-1 -o etherPIo -a operState -e up -u admin -p pls_change
 // 	OK - Cisco UCS sys/switch-B/slot-1/switch-ether/port-1 (operState) up (1 of 1 ok)
+//
+//  $ ./check_cisco_ucs -H 10.18.64.10 -t class -q faultInst -a "code severity ack" -e "cleared,no|cleared,yes|info,no|info,yes|warning,no|warning,yes|yes|^$" -z true -u admin -p pls_change
+//  OK - Cisco UCS faultInst (code,severity,ack) (0 of 0 ok)
+//
 package main
 
 import (
@@ -93,7 +102,7 @@ import (
 
 const (
 	maxNumAttrib = 10
-	version      = "0.2"
+	version      = "0.3"
 )
 
 type (
@@ -148,6 +157,7 @@ var (
 	debug        int
 	showEnv      bool
 	showVersion  bool
+	zeroInst     bool
 	proxyString  string
 )
 
@@ -235,7 +245,7 @@ func init() {
 	flag.BoolVar(&showEnv, "E", false, "print environment variables for debug purpose")
 	flag.BoolVar(&showVersion, "V", false, "print plugin version")
 	flag.StringVar(&proxyString, "P", "", "proxy URL")
-
+	flag.BoolVar(&zeroInst, "z", false, "true or false. if set to true the check will return OK status if zero instances where found. Default is false.")
 }
 
 func main() {
@@ -375,7 +385,7 @@ func main() {
 	prefix := "UNKNOWN"
 	ret_val := 3
 
-	if n > 0 && num_found == n {
+	if (zeroInst && num_found == 0) || (n > 0 && num_found == n) {
 		prefix = "OK"
 		ret_val = 0
 	} else {
@@ -386,3 +396,4 @@ func main() {
 	fmt.Printf("%s - %s (%d of %d ok)\n", prefix, output, num_found, n)
 	os.Exit(ret_val)
 }
+
