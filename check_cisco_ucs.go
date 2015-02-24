@@ -1,5 +1,5 @@
 // 	file: check_cisco_ucs.go
-// 	Version 0.3 (24.4.2014)
+// 	Version 0.4 (24.2.2014)
 //
 // check_cisco_ucs is a Nagios plugin made by Herwig Grimm (herwig.grimm at aon.at)
 // to monitor Cisco UCS rack and blade center hardware.
@@ -35,6 +35,9 @@
 //	Version 0.3 (24.4.2014)
 //		flag -z *OK if zero instances* added
 //
+//	Version 0.4 (25.2.2015)
+//		flag -F display only faults in output, newlines between objects in output line
+//
 // todo:
 // 	1. better error handling
 // 	2. add performance data support
@@ -55,6 +58,7 @@
 //	-E 			print environment variables for debug purpose
 //	-V			print plugin version
 //	-z			true or false. if set to true the check will return OK status if zero instances where found. Default is false.
+//  -F			display only faults in output
 //
 // usage examples:
 //
@@ -159,6 +163,7 @@ var (
 	showVersion  bool
 	zeroInst     bool
 	proxyString  string
+	faultsOnly   bool
 )
 
 func debugPrintf(level int, format string, a ...interface{}) {
@@ -246,6 +251,7 @@ func init() {
 	flag.BoolVar(&showVersion, "V", false, "print plugin version")
 	flag.StringVar(&proxyString, "P", "", "proxy URL")
 	flag.BoolVar(&zeroInst, "z", false, "true or false. if set to true the check will return OK status if zero instances where found. Default is false.")
+	flag.BoolVar(&faultsOnly, "F", false, "display only faults in output")
 }
 
 func main() {
@@ -376,10 +382,19 @@ func main() {
 	debugPrintf(3, "result: %v counter: %d\n", r, n)
 
 	re := regexp.MustCompile(expectString)
+
+	debugPrintf(3, "\n%v\n\n", r)
 	for _, val := range r {
-		num_found += len(re.FindAllString(val, -1))
-		debugPrintf(3, "%s %d", val, num_found)
-		output += " " + val
+		n := len(re.FindAllString(val, -1))
+		num_found += n
+		debugPrintf(3, "%s %d %n", val, num_found, n)
+		if n == 0 && faultsOnly {
+			output += "\n" + val
+		}
+		if !faultsOnly {
+			output += "\n" + val
+		}
+
 	}
 
 	prefix := "UNKNOWN"
@@ -396,4 +411,3 @@ func main() {
 	fmt.Printf("%s - %s (%d of %d ok)\n", prefix, output, num_found, n)
 	os.Exit(ret_val)
 }
-
