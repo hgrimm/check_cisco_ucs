@@ -1,5 +1,5 @@
 // 	file: check_cisco_ucs.go
-// 	Version 0.4 (24.2.2014)
+// 	Version 0.4 (24.02.2015)
 //
 // check_cisco_ucs is a Nagios plugin made by Herwig Grimm (herwig.grimm at aon.at)
 // to monitor Cisco UCS rack and blade center hardware.
@@ -32,10 +32,10 @@
 //		flag -E to show environment variables added
 //		flag -V to print plugin version added
 //
-//	Version 0.3 (24.4.2014)
+//	Version 0.3 (24.04.2014)
 //		flag -z *OK if zero instances* added
 //
-//	Version 0.4 (25.2.2015)
+//	Version 0.4 (24.02.2015)
 //		flag -F display only faults in output, newlines between objects in output line
 //
 // todo:
