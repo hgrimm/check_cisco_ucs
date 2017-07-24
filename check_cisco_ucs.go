@@ -1,5 +1,5 @@
 // 	file: check_cisco_ucs.go
-// 	Version 0.4 (24.02.2015)
+// 	Version 0.5 (19.05.2015)
 //
 // check_cisco_ucs is a Nagios plugin made by Herwig Grimm (herwig.grimm at aon.at)
 // to monitor Cisco UCS rack and blade center hardware.
@@ -18,6 +18,7 @@
 // 	1. UCSC-C240-M3S server and CIMC firmware version 1.5(1f).24
 // 	2. Cisco UCS Manager version 2.1(1e) and UCSB-B22-M3 blade center
 //  3. Cisco UCS Manager version 2.2(1b) and UCSB-B200-M3
+//  4. UCSC-C220-M4S server and CIMC firmware version 2.0(4c).36
 //
 // see also:
 //  	Cisco UCS Rack-Mount Servers CIMC XML API Programmer's Guide
@@ -37,6 +38,11 @@
 //
 //	Version 0.4 (24.02.2015)
 //		flag -F display only faults in output, newlines between objects in output line
+//
+//	Version 0.5 (19.05.2015)
+//		fix for: "remote error: handshake failure"
+//		see: TLSClientConfig ... MaxVersion: tls.VersionTLS11, ...
+//
 //
 // todo:
 // 	1. better error handling
@@ -106,7 +112,7 @@ import (
 
 const (
 	maxNumAttrib = 10
-	version      = "0.3"
+	version      = "0.5"
 )
 
 type (
@@ -299,8 +305,11 @@ func main() {
 
 	client := &http.Client{
 		Transport: &http.Transport{
-			Proxy:           http.ProxyFromEnvironment,
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			Proxy: http.ProxyFromEnvironment,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+				MaxVersion:         tls.VersionTLS11,
+			},
 		},
 	}
 
