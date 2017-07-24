@@ -19,9 +19,11 @@ check_cisco_ucs is a Nagios plugin to monitor Cisco UCS rack and blade center ha
 tested with:
 ------------
 
- 	1. UCSC-C240-M3S server and CIMC firmware version 1.5(1f).24
- 	2. Cisco UCS Manager version 2.1(1e) and UCSB-B22-M3 blade center
- 	3. Cisco UCS Manager version 2.2(1b) and UCSB-B200-M3
+	1. UCSC-C240-M3S server and CIMC firmware version 1.5(1f).24
+	2. Cisco UCS Manager version 2.1(1e) and UCSB-B22-M3 blade center
+	3. Cisco UCS Manager version 2.2(1b) and UCSB-B200-M3
+	4. UCSC-C220-M4S server and CIMC firmware version 2.0(4c).36
+	5. UCS C240 M4S and CIMC firmware version 3.0(3a)
 
 see also:
 ---------
@@ -45,6 +47,24 @@ changelog:
 
 	Version 0.4 (24.02.2015)
 		flag -F display only faults in output, newlines between objects in output line
+
+	Version 0.5 (19.05.2015)
+		fix for: "remote error: handshake failure"
+		see: TLSClientConfig ... MaxVersion: tls.VersionTLS11, ...
+
+	Version 0.6 (19.07.2017)
+		fix for: " Post https://<ipaddr>/nuova/: read tcp <ipaddr>:443: connection reset by peer"
+		see: TLSClientConfig ... MaxVersion: tls.VersionTLS12, ...
+
+		flag -M *max TLS Version* added.
+		CIMC firmware version 3.0 needs flag -M 1.2
+
+
+		fix for: "HTTP 403 Forbidden error"
+		error in URL path: no backslash after *nuova*
+		see code line: url := "https://" + ipAddr + "/nuova"
+		old: .../nuova/ new: .../nuova
+
 
 todo:
 -----
@@ -71,6 +91,7 @@ flags:
 	-V					print plugin version
 	-z					true or false. if set to true the check will return OK status if zero instances where found. Default is false.
 	-F					display only faults in output
+	-M <tls_verson>		max TLS version, default: 1.1, alternativ: 1.2
 
 usage examples:
 ---------------
@@ -88,6 +109,10 @@ usage examples:
 
  	$ ./check_cisco_ucs -H 10.18.4.7 -t dn -q sys/rack-unit-1/indicator-led-4 -o equipmentIndicatorLed -a "id color name" -e green -u admin -p pls_change
  	OK - Cisco UCS sys/rack-unit-1/indicator-led-4 (id,color,name) 4,green,LED_FAN_STATUS (1 of 1 ok)
+
+ 	$ ./check_cisco_ucs -H 10.1.1.235 -t dn -q sys/rack-unit-1/indicator-led-4 -a "id color name" -e "green" -u admin -p pls_change -o equipmentIndicatorLed -M 1.2
+ 	OK - Cisco UCS sys/rack-unit-1/indicator-led-4 (id,color,name)
+ 	4,green,LED_HLTH_STATUS (1 of 1 ok)
 
  	Cisco UCS Manager:
 
