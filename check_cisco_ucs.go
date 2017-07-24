@@ -19,10 +19,11 @@
 // 	2. Cisco UCS Manager version 2.1(1e) and UCSB-B22-M3 blade center
 //  3. Cisco UCS Manager version 2.2(1b) and UCSB-B200-M3
 //  4. UCSC-C220-M4S server and CIMC firmware version 2.0(4c).36
+//  5. UCS C240 M4S and CIMC firmware version 3.0(3a)
 //
 // see also:
-//  	Cisco UCS Rack-Mount Servers CIMC XML API Programmer's Guide
-// 	http://www.cisco.com/en/US/docs/unified_computing/ucs/c/sw/api/b_cimc_api_book.html
+//  	Cisco UCS Rack-Mount Servers Cisco IMC XML API Programmer's Guide, Release 3.0
+// 		http://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/c/sw/api/3_0/b_Cisco_IMC_api_301.html
 //
 //changelog:
 // 	Version 0.1 (11.06.2013) initial release
@@ -42,6 +43,18 @@
 //	Version 0.5 (19.05.2015)
 //		fix for: "remote error: handshake failure"
 //		see: TLSClientConfig ... MaxVersion: tls.VersionTLS11, ...
+//
+//	Version 0.6 (19.07.2017)
+//		fix for: " Post https://<ipaddr>/nuova/: read tcp <ipaddr>:443: connection reset by peer"
+//		see: TLSClientConfig ... MaxVersion: tls.VersionTLS12, ...
+//
+// 		flag -M *max TLS Version* added
+//
+//		fix for: "HTTP 403 Forbidden error"
+//		error in URL path: no backslash after *nuova*
+//		see code line: url := "https://" + ipAddr + "/nuova"
+//		old: .../nuova/ new: .../nuova
+//
 //
 //
 // todo:
@@ -82,6 +95,10 @@
 // 	$ ./check_cisco_ucs -H 10.18.4.7 -t dn -q sys/rack-unit-1/indicator-led-4 -o equipmentIndicatorLed -a "id color name" -e green -u admin -p pls_change
 // 	OK - Cisco UCS sys/rack-unit-1/indicator-led-4 (id,color,name) 4,green,LED_FAN_STATUS (1 of 1 ok)
 //
+//  $ ./check_cisco_ucs -H 10.1.1.235 -t dn -q sys/rack-unit-1/indicator-led-4 -a "id color name" -e "green" -u admin -p pls_change -o equipmentIndicatorLed -M 1.2
+//  OK - Cisco UCS sys/rack-unit-1/indicator-led-4 (id,color,name)
+//  4,green,LED_HLTH_STATUS (1 of 1 ok)
+//
 // 	Cisco UCS Manager:
 //
 // 	$ ./check_cisco_ucs -H 10.18.64.10 -t class -q equipmentPsu -a "id model operState serial" -e operable -u admin -p pls_change
@@ -112,7 +129,7 @@ import (
 
 const (
 	maxNumAttrib = 10
-	version      = "0.5"
+	version      = "0.6"
 )
 
 type (
@@ -154,22 +171,23 @@ type (
 )
 
 var (
-	ipAddr       string
-	queryType    string
-	dnOrClass    string
-	hierarchical string
-	attributes   string
-	expectString string
-	username     string
-	password     string
-	class        string
-	dn           string
-	debug        int
-	showEnv      bool
-	showVersion  bool
-	zeroInst     bool
-	proxyString  string
-	faultsOnly   bool
+	ipAddr              string
+	queryType           string
+	dnOrClass           string
+	hierarchical        string
+	attributes          string
+	expectString        string
+	username            string
+	password            string
+	class               string
+	dn                  string
+	debug               int
+	showEnv             bool
+	showVersion         bool
+	zeroInst            bool
+	proxyString         string
+	faultsOnly          bool
+	maxTlsVersionString string
 )
 
 func debugPrintf(level int, format string, a ...interface{}) {
@@ -258,6 +276,7 @@ func init() {
 	flag.StringVar(&proxyString, "P", "", "proxy URL")
 	flag.BoolVar(&zeroInst, "z", false, "true or false. if set to true the check will return OK status if zero instances where found. Default is false.")
 	flag.BoolVar(&faultsOnly, "F", false, "display only faults in output")
+	flag.StringVar(&maxTlsVersionString, "M", "1.1", "used TLS version, default: v1.1")
 }
 
 func main() {
@@ -303,17 +322,24 @@ func main() {
 	debugPrintf(1, "ip addr: %s dn or class: %s\n", ipAddr, dnOrClass)
 	debugPrintf(1, "hierarchical: %s attributes: \"%s\" expectString: %s\n", hierarchical, attributes, expectString)
 
+	var maxTlsVersion uint16
+
+	maxTlsVersion = tls.VersionTLS11
+	if maxTlsVersionString == "1.2" {
+		maxTlsVersion = tls.VersionTLS12
+	}
+
 	client := &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
-				MaxVersion:         tls.VersionTLS11,
+				MaxVersion:         maxTlsVersion,
 			},
 		},
 	}
 
-	url := "https://" + ipAddr + "/nuova/"
+	url := "https://" + ipAddr + "/nuova"
 	debugPrintf(2, "url: %s\n", url)
 	xml_aaaLogin := &AaaLogin{InName: username, InPassword: password}
 	buf, _ := xml.Marshal(xml_aaaLogin)
