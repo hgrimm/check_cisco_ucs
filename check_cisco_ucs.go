@@ -1,5 +1,5 @@
 // 	file: check_cisco_ucs.go
-// 	Version 0.5 (19.05.2015)
+// 	Version 0.6 (19.07.2017)
 //
 // check_cisco_ucs is a Nagios plugin made by Herwig Grimm (herwig.grimm at aon.at)
 // to monitor Cisco UCS rack and blade center hardware.
