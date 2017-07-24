@@ -28,8 +28,8 @@ tested with:
 see also:
 ---------
 
-  	Cisco UCS Rack-Mount Servers CIMC XML API Programmer's Guide
- 	http://www.cisco.com/en/US/docs/unified_computing/ucs/c/sw/api/b_cimc_api_book.html
+  	Cisco UCS Rack-Mount Servers Cisco IMC XML API Programmer's Guide, Release 3.0
+ 	(http://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/c/sw/api/3_0/b_Cisco_IMC_api_301.html)
 
 changelog:
 ----------
@@ -91,7 +91,7 @@ flags:
 	-V					print plugin version
 	-z					true or false. if set to true the check will return OK status if zero instances where found. Default is false.
 	-F					display only faults in output
-	-M <tls_verson>		max TLS version, default: 1.1, alternativ: 1.2
+	-M <tls_verson>		max TLS version, default: 1.1, alternative: 1.2
 
 usage examples:
 ---------------
