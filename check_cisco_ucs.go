@@ -20,6 +20,7 @@
 //  3. Cisco UCS Manager version 2.2(1b) and UCSB-B200-M3
 //  4. UCSC-C220-M4S server and CIMC firmware version 2.0(4c).36
 //  5. UCS C240 M4S and CIMC firmware version 3.0(3a)
+//  6. Cisco UCS Manager version 3.2(3g)
 //
 // see also:
 //  	Cisco UCS Rack-Mount Servers Cisco IMC XML API Programmer's Guide, Release 3.1
