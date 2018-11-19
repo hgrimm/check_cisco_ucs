@@ -65,7 +65,15 @@ changelog:
 		see code line: url := "https://" + ipAddr + "/nuova"
 		old: .../nuova/ new: .../nuova
 
-
+	Version 0.7 (19.11.2018)
+		flag -f property filter added. But right now there is no support of composite filters.
+		property filter -f <type>:<property>:<value>, examples: -f wcard:dn:^sys/chassis-[1-3].*
+		works only with query type class (-t class)
+		see also: Cisco UCS Manager XML API Programmer's Guide
+		Chapter "Using Filters" > "Property Filters"
+		https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/sw/api/b_ucs_api_book/b_ucs_api_book_chapter_01.html?bookSearch=true#d2466e1249a1635
+		
+		
 todo:
 -----
 
