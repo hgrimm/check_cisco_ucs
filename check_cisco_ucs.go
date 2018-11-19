@@ -1,5 +1,5 @@
 // 	file: check_cisco_ucs.go
-// 	Version 0.6 (19.07.2017)
+// 	Version 0.7 (19.11.2017)
 //
 // check_cisco_ucs is a Nagios plugin made by Herwig Grimm (herwig.grimm at aon.at)
 // to monitor Cisco UCS rack and blade center hardware.
@@ -22,8 +22,8 @@
 //  5. UCS C240 M4S and CIMC firmware version 3.0(3a)
 //
 // see also:
-//  	Cisco UCS Rack-Mount Servers Cisco IMC XML API Programmer's Guide, Release 3.0
-// 		http://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/c/sw/api/3_0/b_Cisco_IMC_api_301.html
+//  	Cisco UCS Rack-Mount Servers Cisco IMC XML API Programmer's Guide, Release 3.1
+// 		https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/c/sw/api/3_1/b_Cisco_IMC_api_31.html
 //
 //changelog:
 // 	Version 0.1 (11.06.2013) initial release
@@ -55,7 +55,13 @@
 //		see code line: url := "https://" + ipAddr + "/nuova"
 //		old: .../nuova/ new: .../nuova
 //
-//
+//	Version 0.7 (19.11.2018)
+//		flag -f property filter added. But right now there is no support of composite filters.
+//			property filter -f <type>:<property>:<value>, examples: -f wcard:dn:^sys/chassis-[1-3].*
+//			works only with query type class (-t class)
+// 			see also: Cisco UCS Manager XML API Programmer's Guide
+//			Chapter "Using Filters" > "Property Filters"
+//			https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/sw/api/b_ucs_api_book/b_ucs_api_book_chapter_01.html?bookSearch=true#d2466e1249a1635
 //
 // todo:
 // 	1. better error handling
@@ -78,6 +84,7 @@
 //	-V			print plugin version
 //	-z			true or false. if set to true the check will return OK status if zero instances where found. Default is false.
 //  -F			display only faults in output
+//  -f			property filter <type>:<property>:<value>, works only with query type class (-t class), examples: wcard:dn:^sys/chassis-[1-3].*
 //
 // usage examples:
 //
@@ -155,6 +162,27 @@ type (
 		Cookie         string   `xml:"cookie,attr"`
 		InHierarchical string   `xml:"inHierarchical,attr"`
 		ClassId        string   `xml:"classId,attr"`
+		InFilter       InFilter
+	}
+
+	InFilter struct {
+		XMLName xml.Name `xml:"inFilter,omitempty"`
+		Wcard   *Wcard   `xml:"wcard,omitempty"`
+		Eq      *Eq      `xml:"eq,omitempty"`
+	}
+
+	Wcard struct {
+		XMLName  struct{} `xml:"wcard"`
+		Class    string   `xml:"class,attr"`
+		Property string   `xml:"property,attr"`
+		Value    string   `xml:"value,attr"`
+	}
+
+	Eq struct {
+		XMLName  struct{} `xml:"eq"`
+		Class    string   `xml:"class,attr"`
+		Property string   `xml:"property,attr"`
+		Value    string   `xml:"value,attr"`
 	}
 
 	ConfigResolveDn struct {
@@ -188,6 +216,7 @@ var (
 	proxyString         string
 	faultsOnly          bool
 	maxTlsVersionString string
+	propertyFilter      string
 )
 
 func debugPrintf(level int, format string, a ...interface{}) {
@@ -277,6 +306,7 @@ func init() {
 	flag.BoolVar(&zeroInst, "z", false, "true or false. if set to true the check will return OK status if zero instances where found. Default is false.")
 	flag.BoolVar(&faultsOnly, "F", false, "display only faults in output")
 	flag.StringVar(&maxTlsVersionString, "M", "1.1", "used TLS version, default: v1.1")
+	flag.StringVar(&propertyFilter, "f", "", "property filter <type>:<property>:<value>, works only with query type class (-t class), example: wcard:dn:^sys/chassis-[1-3].*")
 }
 
 func main() {
@@ -382,9 +412,33 @@ func main() {
 	switch queryType {
 	case "class":
 		xmlConfigResolveClass := &ConfigResolveClass{Cookie: xmlAaaLoginResp.OutCookie, InHierarchical: hierarchical, ClassId: class}
-		buf, _ = xml.Marshal(xmlConfigResolveClass)
-		debugPrintf(3, "configResolveClass request: %s\n", string(buf))
-		data = bytes.NewBuffer(buf)
+		if len(propertyFilter) > 0 {
+			parts := strings.Split(propertyFilter, ":")
+			debugPrintf(3, "propertyFilter split: %#v\n", parts)
+			switch parts[0] {
+			case "wcard":
+				xmlConfigResolveClass.InFilter.Wcard = &Wcard{Class: class, Property: parts[1], Value: parts[2]}
+			case "eq":
+				xmlConfigResolveClass.InFilter.Eq = &Eq{Class: class, Property: parts[1], Value: parts[2]}
+			}
+		}
+
+		debugPrintf(3, "xmlConfigResolveClass request: %#v\n", xmlConfigResolveClass)
+
+		buf, err = xml.MarshalIndent(xmlConfigResolveClass, "  ", "    ")
+		if err != nil {
+			debugPrintf(2, "xmlConfigResolveClass marshal error: %s\n", err)
+		}
+
+		debugPrintf(3, "buf before regex:\n%s\n", string(buf))
+
+		// see issue:
+		// encoding/xml: cannot marshal self-closing tag #21399
+		// https://github.com/golang/go/issues/21399
+		re := regexp.MustCompile("></.*?>")
+		result := re.ReplaceAllString(string(buf), " />")
+		data = bytes.NewBuffer([]byte(result))
+		debugPrintf(3, "configResolveClass request:\n%s\n", result)
 		resp, err = client.Post(url, "text/xml", data)
 		if err != nil {
 			fmt.Printf("error: %v", err)
@@ -396,7 +450,11 @@ func main() {
 
 	case "dn":
 		xmlConfigResolveDn := &ConfigResolveDn{Cookie: xmlAaaLoginResp.OutCookie, InHierarchical: hierarchical, Dn: dn}
-		buf, _ = xml.Marshal(xmlConfigResolveDn)
+
+		buf, err = xml.Marshal(xmlConfigResolveDn)
+		if err != nil {
+			log.Printf("xmlConfigResolveDn marshal error: %s\n", err)
+		}
 		debugPrintf(3, "configResolveDn request: %s\n", string(buf))
 		data = bytes.NewBuffer(buf)
 		resp, err = client.Post(url, "text/xml", data)
@@ -422,7 +480,7 @@ func main() {
 	for _, val := range r {
 		n := len(re.FindAllString(val, -1))
 		num_found += n
-		debugPrintf(3, "%s %d %n", val, num_found, n)
+		debugPrintf(3, "%s num_found=%d n=%d", val, num_found, n)
 		if n == 0 && faultsOnly {
 			output += "\n" + val
 		}
