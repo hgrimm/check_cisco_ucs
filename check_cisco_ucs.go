@@ -168,10 +168,66 @@ type (
 
 	InFilter struct {
 		XMLName xml.Name `xml:"inFilter,omitempty"`
-		Wcard   *Wcard   `xml:"wcard,omitempty"`
 		Eq      *Eq      `xml:"eq,omitempty"`
+		Ne      *Ne      `xml:"ne,omitempty"`
+		Gt      *Gt      `xml:"gt,omitempty"`
+		Ge      *Ge      `xml:"ge,omitempty"`
+		Lt      *Lt      `xml:"lt,omitempty"`
+		Le      *Le      `xml:"le,omitempty"`
+		Wcard   *Wcard   `xml:"wcard,omitempty"`
+		Anybit  *Anybit  `xml:"anybit,omitempty"`
+		Allbits *Allbits `xml:"allbits,omitempty"`
 	}
 
+	// Equality Filter
+	Eq struct {
+		XMLName  struct{} `xml:"eq"`
+		Class    string   `xml:"class,attr"`
+		Property string   `xml:"property,attr"`
+		Value    string   `xml:"value,attr"`
+	}
+
+	// Not Equal Filter
+	Ne struct {
+		XMLName  struct{} `xml:"ne"`
+		Class    string   `xml:"class,attr"`
+		Property string   `xml:"property,attr"`
+		Value    string   `xml:"value,attr"`
+	}
+
+	// Greater Than Filter
+	Gt struct {
+		XMLName  struct{} `xml:"gt"`
+		Class    string   `xml:"class,attr"`
+		Property string   `xml:"property,attr"`
+		Value    string   `xml:"value,attr"`
+	}
+
+	// Greater Than or Equal to Filter
+	Ge struct {
+		XMLName  struct{} `xml:"ge"`
+		Class    string   `xml:"class,attr"`
+		Property string   `xml:"property,attr"`
+		Value    string   `xml:"value,attr"`
+	}
+
+	// Less Than Filter
+	Lt struct {
+		XMLName  struct{} `xml:"lt"`
+		Class    string   `xml:"class,attr"`
+		Property string   `xml:"property,attr"`
+		Value    string   `xml:"value,attr"`
+	}
+
+	// Less Than or Equal to Filter
+	Le struct {
+		XMLName  struct{} `xml:"le"`
+		Class    string   `xml:"class,attr"`
+		Property string   `xml:"property,attr"`
+		Value    string   `xml:"value,attr"`
+	}
+
+	// Wildcard Filter
 	Wcard struct {
 		XMLName  struct{} `xml:"wcard"`
 		Class    string   `xml:"class,attr"`
@@ -179,8 +235,17 @@ type (
 		Value    string   `xml:"value,attr"`
 	}
 
-	Eq struct {
-		XMLName  struct{} `xml:"eq"`
+	// Any Bits Filter
+	Anybit struct {
+		XMLName  struct{} `xml:"anybit"`
+		Class    string   `xml:"class,attr"`
+		Property string   `xml:"property,attr"`
+		Value    string   `xml:"value,attr"`
+	}
+
+	// All Bits Filter
+	Allbits struct {
+		XMLName  struct{} `xml:"allbits"`
 		Class    string   `xml:"class,attr"`
 		Property string   `xml:"property,attr"`
 		Value    string   `xml:"value,attr"`
@@ -417,10 +482,24 @@ func main() {
 			parts := strings.Split(propertyFilter, ":")
 			debugPrintf(3, "propertyFilter split: %#v\n", parts)
 			switch parts[0] {
-			case "wcard":
-				xmlConfigResolveClass.InFilter.Wcard = &Wcard{Class: class, Property: parts[1], Value: parts[2]}
 			case "eq":
 				xmlConfigResolveClass.InFilter.Eq = &Eq{Class: class, Property: parts[1], Value: parts[2]}
+			case "ne":
+				xmlConfigResolveClass.InFilter.Ne = &Ne{Class: class, Property: parts[1], Value: parts[2]}
+			case "gt":
+				xmlConfigResolveClass.InFilter.Gt = &Gt{Class: class, Property: parts[1], Value: parts[2]}
+			case "ge":
+				xmlConfigResolveClass.InFilter.Ge = &Ge{Class: class, Property: parts[1], Value: parts[2]}
+			case "lt":
+				xmlConfigResolveClass.InFilter.Lt = &Lt{Class: class, Property: parts[1], Value: parts[2]}
+			case "le":
+				xmlConfigResolveClass.InFilter.Le = &Le{Class: class, Property: parts[1], Value: parts[2]}
+			case "wcard":
+				xmlConfigResolveClass.InFilter.Wcard = &Wcard{Class: class, Property: parts[1], Value: parts[2]}
+			case "anybit":
+				xmlConfigResolveClass.InFilter.Anybit = &Anybit{Class: class, Property: parts[1], Value: parts[2]}
+			case "allbits":
+				xmlConfigResolveClass.InFilter.Allbits = &Allbits{Class: class, Property: parts[1], Value: parts[2]}
 			}
 		}
 
