@@ -1,5 +1,5 @@
 // 	file: check_cisco_ucs.go
-// 	Version 0.7 (19.11.2017)
+// 	Version 0.7 (20.11.2017)
 //
 // check_cisco_ucs is a Nagios plugin made by Herwig Grimm (herwig.grimm at aon.at)
 // to monitor Cisco UCS rack and blade center hardware.
@@ -45,7 +45,7 @@
 //		fix for: "remote error: handshake failure"
 //		see: TLSClientConfig ... MaxVersion: tls.VersionTLS11, ...
 //
-//	Version 0.6 (19.07.2017)
+//	Version 0.6 (20.07.2017)
 //		fix for: " Post https://<ipaddr>/nuova/: read tcp <ipaddr>:443: connection reset by peer"
 //		see: TLSClientConfig ... MaxVersion: tls.VersionTLS12, ...
 //
@@ -68,6 +68,8 @@
 // 	1. better error handling
 // 	2. add performance data support
 // 	3. command line flag to influence TLS cert verification
+//  4. add warning and critical thresholds
+//  5. add "composite filters" to "property filters"
 //
 // flags:
 // 	-H <ip_addr>		CIMC IP address or Cisco UCS Manager IP address"
@@ -118,6 +120,16 @@
 //  $ ./check_cisco_ucs -H 10.18.64.10 -t class -q faultInst -a "code severity ack" -e "cleared,no|cleared,yes|info,no|info,yes|warning,no|warning,yes|yes|^$" -z true -u admin -p pls_change
 //  OK - Cisco UCS faultInst (code,severity,ack) (0 of 0 ok)
 //
+//  $ ./check_cisco_ucs -H 172.18.37.164 -t class -q faultInst -a "code rn descr" -z -F -u sysu_git_ucsmon -p pls_change -s true -f "wcard:descr:^Log capacity.*"
+//  OK - Cisco UCS faultInst (code,rn,descr)
+//  F0461,,Log capacity on Management Controller on server 1/4 is very-low
+//  F0461,,Log capacity on Management Controller on server 1/1 is very-low (0 of 2 ok)
+//
+//  $ ./check_cisco_ucs -H 172.18.37.164 -t class -q equipmentPsuStats -a "dn outputPower ambientTempAvg timeCollected" -z -F -u sysu_git_ucsmon -p pls_change -s true -f gt:ambientTempAvg:24
+//  OK - Cisco UCS equipmentPsuStats (dn,outputPower,ambientTempAvg,timeCollected)
+//  sys/chassis-3/psu-3/stats,374.696991,24.307692,2018-11-20T07:57:19.396
+//  sys/chassis-2/psu-4/stats,300.200012,25.666668,2018-11-20T07:57:42.627 (0 of 2 ok)
+//
 package main
 
 import (
@@ -137,7 +149,7 @@ import (
 
 const (
 	maxNumAttrib = 10
-	version      = "0.6"
+	version      = "0.7"
 )
 
 type (
