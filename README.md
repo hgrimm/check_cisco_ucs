@@ -24,6 +24,7 @@ tested with:
 	3. Cisco UCS Manager version 2.2(1b) and UCSB-B200-M3
 	4. UCSC-C220-M4S server and CIMC firmware version 2.0(4c).36
 	5. UCS C240 M4S and CIMC firmware version 3.0(3a)
+	6. Cisco UCS Manager version 3.2(3g)
 
 see also:
 ---------
@@ -80,6 +81,8 @@ todo:
  	1. better error handling
  	2. add performance data support
  	3. command line flag to influence TLS cert verification
+ 	4. add warning and critical thresholds
+ 	5. add "composite filters" to "property filters"
 
 flags:
 ------
@@ -100,6 +103,8 @@ flags:
 	-z					true or false. if set to true the check will return OK status if zero instances where found. Default is false.
 	-F					display only faults in output
 	-M <tls_verson>		max TLS version, default: 1.1, alternative: 1.2
+	-f					property filter <type>:<property>:<value>, works only with query type class (-t class), examples: wcard:dn:^sys/chassis-[1-3].*
+
 
 usage examples:
 ---------------
@@ -132,3 +137,13 @@ usage examples:
 
 	$ ./check_cisco_ucs -H 10.18.64.10 -t class -q faultInst -a "code severity ack" -e "cleared,no|cleared,yes|info,no|info,yes|warning,no|warning,yes|yes|^$" -z true -u admin -p pls_change
 	OK - Cisco UCS faultInst (code,severity,ack) (0 of 0 ok)
+
+	$ ./check_cisco_ucs -H 172.18.37.164 -t class -q faultInst -a "code rn descr" -z -F -u admin -p pls_change -s true -f "wcard:descr:^Log capacity.*"
+	OK - Cisco UCS faultInst (code,rn,descr)
+	F0461,,Log capacity on Management Controller on server 1/4 is very-low
+	F0461,,Log capacity on Management Controller on server 1/1 is very-low (0 of 2 ok)
+	
+	$ ./check_cisco_ucs -H 172.18.37.164 -t class -q equipmentPsuStats -a "dn outputPower ambientTempAvg timeCollected" -z -F -u admin -p pls_change -s true -f gt:ambientTempAvg:24
+	OK - Cisco UCS equipmentPsuStats (dn,outputPower,ambientTempAvg,timeCollected)
+	sys/chassis-3/psu-3/stats,374.696991,24.307692,2018-11-20T07:57:19.396
+	sys/chassis-2/psu-4/stats,300.200012,25.666668,2018-11-20T07:57:42.627 (0 of 2 ok)
