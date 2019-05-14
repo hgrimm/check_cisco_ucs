@@ -175,7 +175,7 @@ type (
 		Cookie         string   `xml:"cookie,attr"`
 		InHierarchical string   `xml:"inHierarchical,attr"`
 		ClassId        string   `xml:"classId,attr"`
-		InFilter       InFilter
+		InFilter       *InFilter 
 	}
 
 	InFilter struct {
@@ -491,6 +491,7 @@ func main() {
 	case "class":
 		xmlConfigResolveClass := &ConfigResolveClass{Cookie: xmlAaaLoginResp.OutCookie, InHierarchical: hierarchical, ClassId: class}
 		if len(propertyFilter) > 0 {
+			xmlConfigResolveClass.InFilter = &InFilter{}
 			parts := strings.Split(propertyFilter, ":")
 			debugPrintf(3, "propertyFilter split: %#v\n", parts)
 			switch parts[0] {
