@@ -1,5 +1,5 @@
 // 	file: check_cisco_ucs.go
-// 	Version 0.7 (20.11.2017)
+// 	Version 0.8 (31.01.2019)
 //
 // check_cisco_ucs is a Nagios plugin made by Herwig Grimm (herwig.grimm at aon.at)
 // to monitor Cisco UCS rack and blade center hardware.
@@ -64,6 +64,9 @@
 //			Chapter "Using Filters" > "Property Filters"
 //			https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/sw/api/b_ucs_api_book/b_ucs_api_book_chapter_01.html?bookSearch=true#d2466e1249a1635
 //
+//  Version 0.8 (31.01.2019)
+//              repair of flag -z function *OK if zero instances* if combined with flag -f
+//
 // todo:
 // 	1. better error handling
 // 	2. add performance data support
@@ -87,6 +90,7 @@
 //	-V			print plugin version
 //	-z			true or false. if set to true the check will return OK status if zero instances where found. Default is false.
 //  -F			display only faults in output
+//  -M 			max TLS Version, default: v1.1"
 //  -f			property filter <type>:<property>:<value>, works only with query type class (-t class), examples: wcard:dn:^sys/chassis-[1-3].*
 //
 // usage examples:
@@ -175,7 +179,7 @@ type (
 		Cookie         string   `xml:"cookie,attr"`
 		InHierarchical string   `xml:"inHierarchical,attr"`
 		ClassId        string   `xml:"classId,attr"`
-		InFilter       *InFilter 
+		InFilter       InFilter
 	}
 
 	InFilter struct {
@@ -491,7 +495,6 @@ func main() {
 	case "class":
 		xmlConfigResolveClass := &ConfigResolveClass{Cookie: xmlAaaLoginResp.OutCookie, InHierarchical: hierarchical, ClassId: class}
 		if len(propertyFilter) > 0 {
-			xmlConfigResolveClass.InFilter = &InFilter{}
 			parts := strings.Split(propertyFilter, ":")
 			debugPrintf(3, "propertyFilter split: %#v\n", parts)
 			switch parts[0] {
@@ -586,7 +589,8 @@ func main() {
 	prefix := "UNKNOWN"
 	ret_val := 3
 
-	if (zeroInst && num_found == 0) || (n > 0 && num_found == n) {
+	// new in version 0.8: output example for case (zeroInst && num_found == 0 && n == 0) ---> "... (0 of 0 ok)" or "... (<num_found> of <n> ok)"
+	if (zeroInst && num_found == 0 && n == 0) || (n > 0 && num_found == n) {
 		prefix = "OK"
 		ret_val = 0
 	} else {
