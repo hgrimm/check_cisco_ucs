@@ -1,5 +1,5 @@
 // 	file: check_cisco_ucs.go
-// 	Version 0.9 (11.06.2019)
+// 	Version 0.10 (06.07.2022)
 //
 // check_cisco_ucs is a Nagios plugin made by Herwig Grimm (herwig.grimm at aon.at)
 // to monitor Cisco UCS rack and blade center hardware.
@@ -21,6 +21,7 @@
 //  4. UCSC-C220-M4S server and CIMC firmware version 2.0(4c).36
 //  5. UCS C240 M4S and CIMC firmware version 3.0(3a)
 //  6. Cisco UCS Manager version 3.2(3g)
+//	7. Cisco UCS Manager Version 4.1(3e)
 //
 // see also:
 //  	Cisco UCS Rack-Mount Servers Cisco IMC XML API Programmer's Guide, Release 3.1
@@ -70,6 +71,9 @@
 //  Version 0.9 (11.06.2019)
 //		repair of flag -z function *OK if zero instances* if combined with flag -f
 //
+//  Version 0.10 (06.07.2022)
+//		better usage or help info with links to 'UCS Manager Object Browser' and 'UCS Manager Object Documentation'
+//
 // todo:
 // 	1. better error handling
 // 	2. add performance data support
@@ -82,6 +86,8 @@
 // 	-t <query_type>		query type 'dn' or 'class'"
 // 	-q <dn_or_class>	XML API object class name, examples: storageVirtualDrive or storageLocalDisk or storageControllerProps
 // 						Distinguished Name (DN) name, examples: "sys/rack-unit-1"
+// 						for DNs and Classes see 'UCS Manager Object Browser' http://<ucs-manager-ip>/visore.html
+// 						and 'UCS Manager Object Documentation' https://developer.cisco.com/site/ucs-mim-ref-api-picker (default "storageLocalDisk")
 // 	-o <object>			if XML API object class name, examples: storageVirtualDrive or storageLocalDisk or storageControllerProp
 // 	-s <hierarchical>	true or false. If true, the inHierarchical argument returns all child objects
 // 	-a <attributes>		space separated list of XML attributes for display in nagios output and match against *expect* string
@@ -156,7 +162,7 @@ import (
 
 const (
 	maxNumAttrib = 10
-	version      = "0.7"
+	version      = "0.10"
 )
 
 type (
@@ -377,7 +383,10 @@ func findIndex(a string, list []string) int {
 func init() {
 	flag.StringVar(&ipAddr, "H", "", "UCS Manager IP address or CIMC IP address")
 	flag.StringVar(&queryType, "t", "class", "query type 'class' or 'dn'")
-	flag.StringVar(&dnOrClass, "q", "storageLocalDisk", "XML API object class name, examples: storageVirtualDrive or storageLocalDisk or storageControllerProps\nor Distinguished Name (DN) name, examples: \"sys/rack-unit-1\"")
+	flag.StringVar(&dnOrClass, "q", "storageLocalDisk", `XML API object class name, examples: storageVirtualDrive or storageLocalDisk or storageControllerProps
+	or Distinguished Name (DN) name, examples: \"sys/rack-unit-1\"
+	for DNs and Classes see 'UCS Manager Object Browser' http://<ucs-manager-ip>/visore.html
+	and 'UCS Manager Object Documentation' https://developer.cisco.com/site/ucs-mim-ref-api-picker`)
 	flag.StringVar(&class, "o", "", "XML API object class name, examples: storageVirtualDrive or storageLocalDisk")
 	flag.StringVar(&hierarchical, "s", "false", "true or false. If true, the inHierarchical argument returns all child objects")
 	flag.StringVar(&attributes, "a", "id name", "space separated list of XML attributes for display in nagios output and match against *expect* string")
