@@ -1,5 +1,5 @@
 // 	file: check_cisco_ucs.go
-// 	Version 0.10 (06.07.2022)
+// 	Version 0.11 (17.12.2024)
 //
 // check_cisco_ucs is a Nagios plugin made by Herwig Grimm (herwig.grimm at aon.at)
 // to monitor Cisco UCS rack and blade center hardware.
@@ -15,13 +15,13 @@
 // General Public Licence (see http://www.fsf.org/licensing/licenses/gpl.txt).
 //
 // tested with:
-// 	1. UCSC-C240-M3S server and CIMC firmware version 1.5(1f).24
-// 	2. Cisco UCS Manager version 2.1(1e) and UCSB-B22-M3 blade center
+//  1. UCSC-C240-M3S server and CIMC firmware version 1.5(1f).24
+//  2. Cisco UCS Manager version 2.1(1e) and UCSB-B22-M3 blade center
 //  3. Cisco UCS Manager version 2.2(1b) and UCSB-B200-M3
 //  4. UCSC-C220-M4S server and CIMC firmware version 2.0(4c).36
 //  5. UCS C240 M4S and CIMC firmware version 3.0(3a)
 //  6. Cisco UCS Manager version 3.2(3g)
-//	7. Cisco UCS Manager Version 4.1(3e)
+//  7. Cisco UCS Manager Version 4.1(3e)
 //
 // see also:
 //  	Cisco UCS Rack-Mount Servers Cisco IMC XML API Programmer's Guide, Release 3.1
@@ -74,10 +74,14 @@
 //  Version 0.10 (06.07.2022)
 //		better usage or help info with links to 'UCS Manager Object Browser' and 'UCS Manager Object Documentation'
 //
+//  Version 0.11 (17.12.2024)
+//		fix InFilter initialization
+//		replace deprecated io/ioutil by io
+//
 // todo:
-// 	1. better error handling
-// 	2. add performance data support
-// 	3. command line flag to influence TLS cert verification
+//  1. better error handling
+//  2. add performance data support
+//  3. command line flag to influence TLS cert verification
 //  4. add warning and critical thresholds
 //  5. add "composite filters" to "property filters"
 //
@@ -88,19 +92,19 @@
 // 						Distinguished Name (DN) name, examples: "sys/rack-unit-1"
 // 						for DNs and Classes see 'UCS Manager Object Browser' http://<ucs-manager-ip>/visore.html
 // 						and 'UCS Manager Object Documentation' https://developer.cisco.com/site/ucs-mim-ref-api-picker (default "storageLocalDisk")
-// 	-o <object>			if XML API object class name, examples: storageVirtualDrive or storageLocalDisk or storageControllerProp
+// 	-o <object>		if XML API object class name, examples: storageVirtualDrive or storageLocalDisk or storageControllerProp
 // 	-s <hierarchical>	true or false. If true, the inHierarchical argument returns all child objects
 // 	-a <attributes>		space separated list of XML attributes for display in nagios output and match against *expect* string
 // 	-e <expect_string>	expect string, ok if this is found, examples: "Optimal" or "Good" or "Optimal|Good"
 // 	-u <username>		XML API username
 // 	-p <password>		XML API password
-//	-d <level>			print debug, level: 1 errors only, 2 warnings and 3 informational messages
+//	-d <level>		print debug, level: 1 errors only, 2 warnings and 3 informational messages
 //	-E 			print environment variables for debug purpose
 //	-V			print plugin version
 //	-z			true or false. if set to true the check will return OK status if zero instances where found. Default is false.
-//  -F			display only faults in output
-//  -M 			max TLS Version, default: v1.1"
-//  -f			property filter <type>:<property>:<value>, works only with query type class (-t class), examples: wcard:dn:^sys/chassis-[1-3].*
+//	-F			display only faults in output
+//	-M 			max TLS Version, default: v1.1"
+//	-f			property filter <type>:<property>:<value>, works only with query type class (-t class), examples: wcard:dn:^sys/chassis-[1-3].*
 //
 // usage examples:
 //
@@ -118,9 +122,9 @@
 // 	$ ./check_cisco_ucs -H 10.18.4.7 -t dn -q sys/rack-unit-1/indicator-led-4 -o equipmentIndicatorLed -a "id color name" -e green -u admin -p pls_change
 // 	OK - Cisco UCS sys/rack-unit-1/indicator-led-4 (id,color,name) 4,green,LED_FAN_STATUS (1 of 1 ok)
 //
-//  $ ./check_cisco_ucs -H 10.1.1.235 -t dn -q sys/rack-unit-1/indicator-led-4 -a "id color name" -e "green" -u admin -p pls_change -o equipmentIndicatorLed -M 1.2
-//  OK - Cisco UCS sys/rack-unit-1/indicator-led-4 (id,color,name)
-//  4,green,LED_HLTH_STATUS (1 of 1 ok)
+// 	$ ./check_cisco_ucs -H 10.1.1.235 -t dn -q sys/rack-unit-1/indicator-led-4 -a "id color name" -e "green" -u admin -p pls_change -o equipmentIndicatorLed -M 1.2
+// 	OK - Cisco UCS sys/rack-unit-1/indicator-led-4 (id,color,name)
+// 	4,green,LED_HLTH_STATUS (1 of 1 ok)
 //
 // 	Cisco UCS Manager:
 //
@@ -130,18 +134,18 @@
 // 	$ ./check_cisco_ucs -H 10.18.64.10 -t dn -q sys/switch-B/slot-1/switch-ether/port-1 -o etherPIo -a operState -e up -u admin -p pls_change
 // 	OK - Cisco UCS sys/switch-B/slot-1/switch-ether/port-1 (operState) up (1 of 1 ok)
 //
-//  $ ./check_cisco_ucs -H 10.18.64.10 -t class -q faultInst -a "code severity ack" -e "cleared,no|cleared,yes|info,no|info,yes|warning,no|warning,yes|yes|^$" -z true -u admin -p pls_change
-//  OK - Cisco UCS faultInst (code,severity,ack) (0 of 0 ok)
+// 	$ ./check_cisco_ucs -H 10.18.64.10 -t class -q faultInst -a "code severity ack" -e "cleared,no|cleared,yes|info,no|info,yes|warning,no|warning,yes|yes|^$" -z true -u admin -p pls_change
+// 	OK - Cisco UCS faultInst (code,severity,ack) (0 of 0 ok)
 //
-//  $ ./check_cisco_ucs -H 172.18.37.164 -t class -q faultInst -a "code rn descr" -z -F -u sysu_git_ucsmon -p pls_change -s true -f "wcard:descr:^Log capacity.*"
-//  OK - Cisco UCS faultInst (code,rn,descr)
-//  F0461,,Log capacity on Management Controller on server 1/4 is very-low
-//  F0461,,Log capacity on Management Controller on server 1/1 is very-low (0 of 2 ok)
+// 	$ ./check_cisco_ucs -H 172.18.37.164 -t class -q faultInst -a "code rn descr" -z -F -u sysu_git_ucsmon -p pls_change -s true -f "wcard:descr:^Log capacity.*"
+// 	OK - Cisco UCS faultInst (code,rn,descr)
+// 	F0461,,Log capacity on Management Controller on server 1/4 is very-low
+// 	F0461,,Log capacity on Management Controller on server 1/1 is very-low (0 of 2 ok)
 //
-//  $ ./check_cisco_ucs -H 172.18.37.164 -t class -q equipmentPsuStats -a "dn outputPower ambientTempAvg timeCollected" -z -F -u sysu_git_ucsmon -p pls_change -s true -f gt:ambientTempAvg:24
-//  OK - Cisco UCS equipmentPsuStats (dn,outputPower,ambientTempAvg,timeCollected)
-//  sys/chassis-3/psu-3/stats,374.696991,24.307692,2018-11-20T07:57:19.396
-//  sys/chassis-2/psu-4/stats,300.200012,25.666668,2018-11-20T07:57:42.627 (0 of 2 ok)
+// 	$ ./check_cisco_ucs -H 172.18.37.164 -t class -q equipmentPsuStats -a "dn outputPower ambientTempAvg timeCollected" -z -F -u sysu_git_ucsmon -p pls_change -s true -f gt:ambientTempAvg:24
+// 	OK - Cisco UCS equipmentPsuStats (dn,outputPower,ambientTempAvg,timeCollected)
+// 	sys/chassis-3/psu-3/stats,374.696991,24.307692,2018-11-20T07:57:19.396
+// 	sys/chassis-2/psu-4/stats,300.200012,25.666668,2018-11-20T07:57:42.627 (0 of 2 ok)
 //
 package main
 
@@ -151,7 +155,7 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -162,7 +166,7 @@ import (
 
 const (
 	maxNumAttrib = 10
-	version      = "0.10"
+	version      = "0.11"
 )
 
 type (
@@ -328,9 +332,9 @@ func logout(client *http.Client, url, cookie string) {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 
-	debugPrintf(2, "logout respons: %s\n", body)
+	debugPrintf(2, "logout response: %s\n", body)
 }
 
 func getXmlAttr(xml_data string, element_name string, attributes []string) (result []string, counter int) {
@@ -475,7 +479,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 
 	debugPrintf(2, "http status code: %s\n", resp.Status)
 	debugPrintf(3, "login response: %s\n", string(body))
@@ -507,6 +511,7 @@ func main() {
 	case "class":
 		xmlConfigResolveClass := &ConfigResolveClass{Cookie: xmlAaaLoginResp.OutCookie, InHierarchical: hierarchical, ClassId: class}
 		if len(propertyFilter) > 0 {
+			xmlConfigResolveClass.InFilter = &InFilter{}
 			parts := strings.Split(propertyFilter, ":")
 			debugPrintf(3, "propertyFilter split: %#v\n", parts)
 			switch parts[0] {
@@ -553,8 +558,8 @@ func main() {
 			os.Exit(3)
 		}
 		defer resp.Body.Close()
-		body, err = ioutil.ReadAll(resp.Body)
-		debugPrintf(2, "configResolveClass respons: %s\n", body)
+		body, err = io.ReadAll(resp.Body)
+		debugPrintf(2, "configResolveClass response: %s\n", body)
 
 	case "dn":
 		xmlConfigResolveDn := &ConfigResolveDn{Cookie: xmlAaaLoginResp.OutCookie, InHierarchical: hierarchical, Dn: dn}
@@ -571,8 +576,8 @@ func main() {
 			os.Exit(3)
 		}
 		defer resp.Body.Close()
-		body, err = ioutil.ReadAll(resp.Body)
-		debugPrintf(2, "configResolveDn respons: %s\n", body)
+		body, err = io.ReadAll(resp.Body)
+		debugPrintf(2, "configResolveDn response: %s\n", body)
 
 	}
 
