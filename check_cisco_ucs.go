@@ -728,8 +728,10 @@ func main() {
 
 	debugPrintf(3, "\n%v\n\n", r)
 	for _, val := range r {
-		n := len(re.FindAllString(val, -1))
-		num_found += n
+		matches := re.FindAllString(val, -1)
+		if len(matches) > 0 {
+		num_found++
+		}
 		debugPrintf(3, "%s num_found=%d n=%d", val, num_found, n)
 		if n == 0 && faultsOnly {
 			output += "\n" + val
