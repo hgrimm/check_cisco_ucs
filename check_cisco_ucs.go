@@ -1,5 +1,5 @@
-// 	file: check_cisco_ucs.go
-// 	Version 0.11 (17.12.2024)
+//	file: check_cisco_ucs.go
+//	Version 0.15 (21.05.2026)
 //
 // check_cisco_ucs is a Nagios plugin made by Herwig Grimm (herwig.grimm at aon.at)
 // to monitor Cisco UCS rack and blade center hardware.
@@ -8,7 +8,6 @@
 // any libraries.
 //
 // The plugin uses the Cisco UCS XML API via HTTPS to do a wide variety of checks.
-//
 //
 // This nagios plugin is free software, and comes with ABSOLUTELY NO WARRANTY.
 // It may be used, redistributed and/or modified under the terms of the GNU
@@ -24,59 +23,78 @@
 //  7. Cisco UCS Manager Version 4.1(3e)
 //
 // see also:
-//  	Cisco UCS Rack-Mount Servers Cisco IMC XML API Programmer's Guide, Release 3.1
-// 		https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/c/sw/api/3_1/b_Cisco_IMC_api_31.html
 //
-//changelog:
-// 	Version 0.1 (11.06.2013) initial release
+//	 	Cisco UCS Rack-Mount Servers Cisco IMC XML API Programmer's Guide, Release 3.1
+//			https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/c/sw/api/3_1/b_Cisco_IMC_api_31.html
 //
-//	Version 0.2 (26.06.2013)
-//		usage text debug flag added,
-//		write errors to stdout instead of stderr,
-//		flag -E to show environment variables added
-//		flag -V to print plugin version added
+// changelog:
 //
-//	Version 0.3 (24.04.2014)
-//		flag -z *OK if zero instances* added
+//		Version 0.1 (11.06.2013) initial release
 //
-//	Version 0.4 (24.02.2015)
-//		flag -F display only faults in output, newlines between objects in output line
+//		Version 0.2 (26.06.2013)
+//			usage text debug flag added,
+//			write errors to stdout instead of stderr,
+//			flag -E to show environment variables added
+//			flag -V to print plugin version added
 //
-//	Version 0.5 (19.05.2015)
-//		fix for: "remote error: handshake failure"
-//		see: TLSClientConfig ... MaxVersion: tls.VersionTLS11, ...
+//		Version 0.3 (24.04.2014)
+//			flag -z *OK if zero instances* added
 //
-//	Version 0.6 (20.07.2017)
-//		fix for: " Post https://<ipaddr>/nuova/: read tcp <ipaddr>:443: connection reset by peer"
-//		see: TLSClientConfig ... MaxVersion: tls.VersionTLS12, ...
+//		Version 0.4 (24.02.2015)
+//			flag -F display only faults in output, newlines between objects in output line
 //
-// 		flag -M *max TLS Version* added
+//		Version 0.5 (19.05.2015)
+//			fix for: "remote error: handshake failure"
+//			see: TLSClientConfig ... MaxVersion: tls.VersionTLS11, ...
 //
-//		fix for: "HTTP 403 Forbidden error"
-//		error in URL path: no backslash after *nuova*
-//		see code line: url := "https://" + ipAddr + "/nuova"
-//		old: .../nuova/ new: .../nuova
+//		Version 0.6 (20.07.2017)
+//			fix for: " Post https://<ipaddr>/nuova/: read tcp <ipaddr>:443: connection reset by peer"
+//			see: TLSClientConfig ... MaxVersion: tls.VersionTLS12, ...
 //
-//	Version 0.7 (19.11.2018)
-//		flag -f property filter added. But right now there is no support of composite filters.
-//			property filter -f <type>:<property>:<value>, examples: -f wcard:dn:^sys/chassis-[1-3].*
-//			works only with query type class (-t class)
-// 			see also: Cisco UCS Manager XML API Programmer's Guide
-//			Chapter "Using Filters" > "Property Filters"
-//			https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/sw/api/b_ucs_api_book/b_ucs_api_book_chapter_01.html?bookSearch=true#d2466e1249a1635
+//			flag -M *max TLS Version* added
 //
-//  Version 0.8 (14.05.2019)
-//		jhedlund: Changed InFilter to a pointer so that it is ommitted if empty
+//			fix for: "HTTP 403 Forbidden error"
+//			error in URL path: no backslash after *nuova*
+//			see code line: url := "https://" + ipAddr + "/nuova"
+//			old: .../nuova/ new: .../nuova
 //
-//  Version 0.9 (11.06.2019)
-//		repair of flag -z function *OK if zero instances* if combined with flag -f
+//		Version 0.7 (19.11.2018)
+//			flag -f property filter added. But right now there is no support of composite filters.
+//				property filter -f <type>:<property>:<value>, examples: -f wcard:dn:^sys/chassis-[1-3].*
+//				works only with query type class (-t class)
+//				see also: Cisco UCS Manager XML API Programmer's Guide
+//				Chapter "Using Filters" > "Property Filters"
+//				https://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/sw/api/b_ucs_api_book/b_ucs_api_book_chapter_01.html?bookSearch=true#d2466e1249a1635
 //
-//  Version 0.10 (06.07.2022)
-//		better usage or help info with links to 'UCS Manager Object Browser' and 'UCS Manager Object Documentation'
+//	 Version 0.8 (14.05.2019)
+//			jhedlund: Changed InFilter to a pointer so that it is ommitted if empty
 //
-//  Version 0.11 (17.12.2024)
-//		fix InFilter initialization
-//		replace deprecated io/ioutil by io
+//	 Version 0.9 (11.06.2019)
+//			repair of flag -z function *OK if zero instances* if combined with flag -f
+//
+//	 Version 0.10 (06.07.2022)
+//			better usage or help info with links to 'UCS Manager Object Browser' and 'UCS Manager Object Documentation'
+//
+//	 Version 0.11 (17.12.2024)
+//			fix InFilter initialization
+//			replace deprecated io/ioutil by io
+//
+//	 Version 0.12 (21.05.2026)
+//			added flag -l to list DN paths and sort output alphabetically
+//			added TLS 1.3 support, changed default max TLS to 1.2 and set min TLS to 1.0
+//			fixed hierarchical query (-s true) for query type 'dn' by replacing empty XML tags
+//			made -l flag class-independent
+//
+//	 Version 0.13 (21.05.2026)
+//			added flag -C to list class names of the queried objects
+//
+//	 Version 0.14 (21.05.2026)
+//			fixed XML parsing of concatenated bodies for hierarchical dn queries
+//			fixed getXmlAttr bug where attributes retained values from previous elements
+//
+//	 Version 0.15 (21.05.2026)
+//			fixed hierarchical dn query (-t dn -s true) for deep children by converting to class query with dn wildcard filter when class (-o) is provided
+//			added error logging to getXmlAttr to surface XML parse errors
 //
 // todo:
 //  1. better error handling
@@ -86,67 +104,67 @@
 //  5. add "composite filters" to "property filters"
 //
 // flags:
-// 	-H <ip_addr>		CIMC IP address or Cisco UCS Manager IP address"
-// 	-t <query_type>		query type 'dn' or 'class'"
-// 	-q <dn_or_class>	XML API object class name, examples: storageVirtualDrive or storageLocalDisk or storageControllerProps
-// 						Distinguished Name (DN) name, examples: "sys/rack-unit-1"
-// 						for DNs and Classes see 'UCS Manager Object Browser' http://<ucs-manager-ip>/visore.html
-// 						and 'UCS Manager Object Documentation' https://developer.cisco.com/site/ucs-mim-ref-api-picker (default "storageLocalDisk")
-// 	-o <object>		if XML API object class name, examples: storageVirtualDrive or storageLocalDisk or storageControllerProp
-// 	-s <hierarchical>	true or false. If true, the inHierarchical argument returns all child objects
-// 	-a <attributes>		space separated list of XML attributes for display in nagios output and match against *expect* string
-// 	-e <expect_string>	expect string, ok if this is found, examples: "Optimal" or "Good" or "Optimal|Good"
-// 	-u <username>		XML API username
-// 	-p <password>		XML API password
+//
+//	-H <ip_addr>		CIMC IP address or Cisco UCS Manager IP address"
+//	-t <query_type>		query type 'dn' or 'class'"
+//	-q <dn_or_class>	XML API object class name, examples: storageVirtualDrive or storageLocalDisk or storageControllerProps
+//						Distinguished Name (DN) name, examples: "sys/rack-unit-1"
+//						for DNs and Classes see 'UCS Manager Object Browser' http://<ucs-manager-ip>/visore.html
+//						and 'UCS Manager Object Documentation' https://developer.cisco.com/site/ucs-mim-ref-api-picker (default "storageLocalDisk")
+//	-o <object>		if XML API object class name, examples: storageVirtualDrive or storageLocalDisk or storageControllerProp
+//	-s <hierarchical>	true or false. If true, the inHierarchical argument returns all child objects
+//	-a <attributes>		space separated list of XML attributes for display in nagios output and match against *expect* string
+//	-e <expect_string>	expect string, ok if this is found, examples: "Optimal" or "Good" or "Optimal|Good"
+//	-u <username>		XML API username
+//	-p <password>		XML API password
 //	-d <level>		print debug, level: 1 errors only, 2 warnings and 3 informational messages
 //	-E 			print environment variables for debug purpose
 //	-V			print plugin version
 //	-z			true or false. if set to true the check will return OK status if zero instances where found. Default is false.
 //	-F			display only faults in output
-//	-M 			max TLS Version, default: v1.1"
+//	-M 			max TLS Version, default: 1.2"
 //	-f			property filter <type>:<property>:<value>, works only with query type class (-t class), examples: wcard:dn:^sys/chassis-[1-3].*
 //
 // usage examples:
 //
-// 	Cisco UCS rack server via CIMC:
+//	Cisco UCS rack server via CIMC:
 //
-// 	$ ./check_cisco_ucs -H 10.18.4.7 -t class -q storageVirtualDrive -a "raidLevel vdStatus health" -e Optimal -u admin -p pls_change
-// 	OK - Cisco UCS storageVirtualDrive (raidLevel,vdStatus,health) RAID 10,Optimal,Good (1 of 1 ok)
+//	$ ./check_cisco_ucs -H 10.18.4.7 -t class -q storageVirtualDrive -a "raidLevel vdStatus health" -e Optimal -u admin -p pls_change
+//	OK - Cisco UCS storageVirtualDrive (raidLevel,vdStatus,health) RAID 10,Optimal,Good (1 of 1 ok)
 //
-// 	$ ./check_cisco_ucs -H 10.18.4.7 -t class -q storageLocalDisk -a "id pdStatus driveSerialNumber" -e Online -u admin -p pls_change
-// 	OK - Cisco UCS storageLocalDisk (id,pdStatus,driveSerialNumber) 1,Online,6XP4QRVQ 2,Online,6XP4QS1G 3,Online,6XP4RT6A 4,Online,6XP4RT8V (4 of 4 ok)
+//	$ ./check_cisco_ucs -H 10.18.4.7 -t class -q storageLocalDisk -a "id pdStatus driveSerialNumber" -e Online -u admin -p pls_change
+//	OK - Cisco UCS storageLocalDisk (id,pdStatus,driveSerialNumber) 1,Online,6XP4QRVQ 2,Online,6XP4QS1G 3,Online,6XP4RT6A 4,Online,6XP4RT8V (4 of 4 ok)
 //
-// 	$ ./check_cisco_ucs -H 10.18.64.10 -t class -q equipmentPsu -a "id model operState serial" -e operable -u admin -p pls_change
-// 	CRIT - Cisco UCS equipmentPsu (id,model,operState,serial) 1,UCS-PSU-6248UP-AC,operable,POG164371G8 2,UCS-PSU-6248UP-AC,operable,POG1643721D 1,UCS-PSU-6248UP-AC,operable,POG164371C5 2,UCS-PSU-6248UP-AC,operable,POG1643721S 1,UCSB-PSU-2500ACPL,operable,AZS16210FFA 2,UCSB-PSU-2500ACPL,operable,AZS16210FH3 3,UCSB-PSU-2500ACPL,operable,AZS16210FH2 4,,removed (7 of 8 ok)
+//	$ ./check_cisco_ucs -H 10.18.64.10 -t class -q equipmentPsu -a "id model operState serial" -e operable -u admin -p pls_change
+//	CRIT - Cisco UCS equipmentPsu (id,model,operState,serial) 1,UCS-PSU-6248UP-AC,operable,POG164371G8 2,UCS-PSU-6248UP-AC,operable,POG1643721D 1,UCS-PSU-6248UP-AC,operable,POG164371C5 2,UCS-PSU-6248UP-AC,operable,POG1643721S 1,UCSB-PSU-2500ACPL,operable,AZS16210FFA 2,UCSB-PSU-2500ACPL,operable,AZS16210FH3 3,UCSB-PSU-2500ACPL,operable,AZS16210FH2 4,,removed (7 of 8 ok)
 //
-// 	$ ./check_cisco_ucs -H 10.18.4.7 -t dn -q sys/rack-unit-1/indicator-led-4 -o equipmentIndicatorLed -a "id color name" -e green -u admin -p pls_change
-// 	OK - Cisco UCS sys/rack-unit-1/indicator-led-4 (id,color,name) 4,green,LED_FAN_STATUS (1 of 1 ok)
+//	$ ./check_cisco_ucs -H 10.18.4.7 -t dn -q sys/rack-unit-1/indicator-led-4 -o equipmentIndicatorLed -a "id color name" -e green -u admin -p pls_change
+//	OK - Cisco UCS sys/rack-unit-1/indicator-led-4 (id,color,name) 4,green,LED_FAN_STATUS (1 of 1 ok)
 //
-// 	$ ./check_cisco_ucs -H 10.1.1.235 -t dn -q sys/rack-unit-1/indicator-led-4 -a "id color name" -e "green" -u admin -p pls_change -o equipmentIndicatorLed -M 1.2
-// 	OK - Cisco UCS sys/rack-unit-1/indicator-led-4 (id,color,name)
-// 	4,green,LED_HLTH_STATUS (1 of 1 ok)
+//	$ ./check_cisco_ucs -H 10.1.1.235 -t dn -q sys/rack-unit-1/indicator-led-4 -a "id color name" -e "green" -u admin -p pls_change -o equipmentIndicatorLed -M 1.2
+//	OK - Cisco UCS sys/rack-unit-1/indicator-led-4 (id,color,name)
+//	4,green,LED_HLTH_STATUS (1 of 1 ok)
 //
-// 	Cisco UCS Manager:
+//	Cisco UCS Manager:
 //
-// 	$ ./check_cisco_ucs -H 10.18.64.10 -t class -q equipmentPsu -a "id model operState serial" -e operable -u admin -p pls_change
-// 	CRIT - Cisco UCS equipmentPsu (id,model,operState,serial) 1,UCS-PSU-6248UP-AC,operable,POG164371G8 2,UCS-PSU-6248UP-AC,operable,POG1643721D 1,UCS-PSU-6248UP-AC,operable,POG164371C5 2,UCS-PSU-6248UP-AC,operable,POG1643721S 1,UCSB-PSU-2500ACPL,operable,AZS16210FFA 2,UCSB-PSU-2500ACPL,operable,AZS16210FH3 3,UCSB-PSU-2500ACPL,operable,AZS16210FH2 4,,removed (7 of 8 ok)
+//	$ ./check_cisco_ucs -H 10.18.64.10 -t class -q equipmentPsu -a "id model operState serial" -e operable -u admin -p pls_change
+//	CRIT - Cisco UCS equipmentPsu (id,model,operState,serial) 1,UCS-PSU-6248UP-AC,operable,POG164371G8 2,UCS-PSU-6248UP-AC,operable,POG1643721D 1,UCS-PSU-6248UP-AC,operable,POG164371C5 2,UCS-PSU-6248UP-AC,operable,POG1643721S 1,UCSB-PSU-2500ACPL,operable,AZS16210FFA 2,UCSB-PSU-2500ACPL,operable,AZS16210FH3 3,UCSB-PSU-2500ACPL,operable,AZS16210FH2 4,,removed (7 of 8 ok)
 //
-// 	$ ./check_cisco_ucs -H 10.18.64.10 -t dn -q sys/switch-B/slot-1/switch-ether/port-1 -o etherPIo -a operState -e up -u admin -p pls_change
-// 	OK - Cisco UCS sys/switch-B/slot-1/switch-ether/port-1 (operState) up (1 of 1 ok)
+//	$ ./check_cisco_ucs -H 10.18.64.10 -t dn -q sys/switch-B/slot-1/switch-ether/port-1 -o etherPIo -a operState -e up -u admin -p pls_change
+//	OK - Cisco UCS sys/switch-B/slot-1/switch-ether/port-1 (operState) up (1 of 1 ok)
 //
-// 	$ ./check_cisco_ucs -H 10.18.64.10 -t class -q faultInst -a "code severity ack" -e "cleared,no|cleared,yes|info,no|info,yes|warning,no|warning,yes|yes|^$" -z true -u admin -p pls_change
-// 	OK - Cisco UCS faultInst (code,severity,ack) (0 of 0 ok)
+//	$ ./check_cisco_ucs -H 10.18.64.10 -t class -q faultInst -a "code severity ack" -e "cleared,no|cleared,yes|info,no|info,yes|warning,no|warning,yes|yes|^$" -z true -u admin -p pls_change
+//	OK - Cisco UCS faultInst (code,severity,ack) (0 of 0 ok)
 //
-// 	$ ./check_cisco_ucs -H 172.18.37.164 -t class -q faultInst -a "code rn descr" -z -F -u sysu_git_ucsmon -p pls_change -s true -f "wcard:descr:^Log capacity.*"
-// 	OK - Cisco UCS faultInst (code,rn,descr)
-// 	F0461,,Log capacity on Management Controller on server 1/4 is very-low
-// 	F0461,,Log capacity on Management Controller on server 1/1 is very-low (0 of 2 ok)
+//	$ ./check_cisco_ucs -H 172.18.37.164 -t class -q faultInst -a "code rn descr" -z -F -u sysu_git_ucsmon -p pls_change -s true -f "wcard:descr:^Log capacity.*"
+//	OK - Cisco UCS faultInst (code,rn,descr)
+//	F0461,,Log capacity on Management Controller on server 1/4 is very-low
+//	F0461,,Log capacity on Management Controller on server 1/1 is very-low (0 of 2 ok)
 //
-// 	$ ./check_cisco_ucs -H 172.18.37.164 -t class -q equipmentPsuStats -a "dn outputPower ambientTempAvg timeCollected" -z -F -u sysu_git_ucsmon -p pls_change -s true -f gt:ambientTempAvg:24
-// 	OK - Cisco UCS equipmentPsuStats (dn,outputPower,ambientTempAvg,timeCollected)
-// 	sys/chassis-3/psu-3/stats,374.696991,24.307692,2018-11-20T07:57:19.396
-// 	sys/chassis-2/psu-4/stats,300.200012,25.666668,2018-11-20T07:57:42.627 (0 of 2 ok)
-//
+//	$ ./check_cisco_ucs -H 172.18.37.164 -t class -q equipmentPsuStats -a "dn outputPower ambientTempAvg timeCollected" -z -F -u sysu_git_ucsmon -p pls_change -s true -f gt:ambientTempAvg:24
+//	OK - Cisco UCS equipmentPsuStats (dn,outputPower,ambientTempAvg,timeCollected)
+//	sys/chassis-3/psu-3/stats,374.696991,24.307692,2018-11-20T07:57:19.396
+//	sys/chassis-2/psu-4/stats,300.200012,25.666668,2018-11-20T07:57:42.627 (0 of 2 ok)
 package main
 
 import (
@@ -161,12 +179,13 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 )
 
 const (
 	maxNumAttrib = 10
-	version      = "0.11"
+	version      = "0.15"
 )
 
 type (
@@ -287,6 +306,13 @@ type (
 		Dn             string   `xml:"dn,attr"`
 	}
 
+	ConfigResolveChildren struct {
+		XMLName        struct{} `xml:"configResolveChildren"`
+		Cookie         string   `xml:"cookie,attr"`
+		InHierarchical string   `xml:"inHierarchical,attr"`
+		InDn           string   `xml:"inDn,attr"`
+	}
+
 	AaaLogout struct {
 		XMLName  struct{} `xml:"aaaLogout"`
 		InCookie string   `xml:"inCookie,attr"`
@@ -312,6 +338,8 @@ var (
 	faultsOnly          bool
 	maxTlsVersionString string
 	propertyFilter      string
+	listDns             bool
+	listClasses         bool
 )
 
 func debugPrintf(level int, format string, a ...interface{}) {
@@ -340,7 +368,6 @@ func logout(client *http.Client, url, cookie string) {
 func getXmlAttr(xml_data string, element_name string, attributes []string) (result []string, counter int) {
 
 	counter = 0
-	values := make([]string, maxNumAttrib)
 
 	resultStr := ""
 	decoder := xml.NewDecoder(bytes.NewBufferString(xml_data))
@@ -348,6 +375,9 @@ func getXmlAttr(xml_data string, element_name string, attributes []string) (resu
 	for {
 		token, err := decoder.Token()
 		if err != nil {
+			if err != io.EOF {
+				debugPrintf(1, "XML parse error: %v\n", err)
+			}
 			break
 		}
 		switch t := token.(type) {
@@ -357,15 +387,20 @@ func getXmlAttr(xml_data string, element_name string, attributes []string) (resu
 
 			if name == element_name {
 				counter++
+				values := make([]string, maxNumAttrib)
 				for _, attr := range token.(xml.StartElement).Attr {
 					attr_name := attr.Name.Local
 					attr_value := attr.Value
 					if i := findIndex(attr_name, attributes); i > -1 {
 						values[i] = attr_value
 					}
-					resultStr = strings.Join(values, ",")
 				}
-				result = append(result, strings.TrimRight(resultStr, ","))
+				var matched []string
+				for i := 0; i < len(attributes); i++ {
+					matched = append(matched, values[i])
+				}
+				resultStr = strings.Join(matched, ",")
+				result = append(result, resultStr)
 				resultStr = ""
 			}
 
@@ -403,8 +438,10 @@ func init() {
 	flag.StringVar(&proxyString, "P", "", "proxy URL")
 	flag.BoolVar(&zeroInst, "z", false, "true or false. if set to true the check will return OK status if zero instances where found. Default is false.")
 	flag.BoolVar(&faultsOnly, "F", false, "display only faults in output")
-	flag.StringVar(&maxTlsVersionString, "M", "1.1", "used TLS version, default: v1.1")
+	flag.StringVar(&maxTlsVersionString, "M", "1.2", "used TLS version, default: 1.2 (options: 1.1, 1.2, 1.3)")
 	flag.StringVar(&propertyFilter, "f", "", "property filter <type>:<property>:<value>, works only with query type class (-t class), example: wcard:dn:^sys/chassis-[1-3].*")
+	flag.BoolVar(&listDns, "l", false, "list DN paths of the queried objects and exit")
+	flag.BoolVar(&listClasses, "C", false, "list class names of the queried objects and exit")
 }
 
 func main() {
@@ -455,6 +492,8 @@ func main() {
 	maxTlsVersion = tls.VersionTLS11
 	if maxTlsVersionString == "1.2" {
 		maxTlsVersion = tls.VersionTLS12
+	} else if maxTlsVersionString == "1.3" {
+		maxTlsVersion = tls.VersionTLS13
 	}
 
 	client := &http.Client{
@@ -462,6 +501,7 @@ func main() {
 			Proxy: http.ProxyFromEnvironment,
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
+				MinVersion:         tls.VersionTLS10,
 				MaxVersion:         maxTlsVersion,
 			},
 		},
@@ -568,8 +608,10 @@ func main() {
 		if err != nil {
 			log.Printf("xmlConfigResolveDn marshal error: %s\n", err)
 		}
-		debugPrintf(3, "configResolveDn request: %s\n", string(buf))
-		data = bytes.NewBuffer(buf)
+		re := regexp.MustCompile("></.*?>")
+		result := re.ReplaceAllString(string(buf), " />")
+		debugPrintf(3, "configResolveDn request: %s\n", result)
+		data = bytes.NewBuffer([]byte(result))
 		resp, err = client.Post(url, "text/xml", data)
 		if err != nil {
 			fmt.Printf("error: %v", err)
@@ -579,10 +621,105 @@ func main() {
 		body, err = io.ReadAll(resp.Body)
 		debugPrintf(2, "configResolveDn response: %s\n", body)
 
+		// Workaround for Cisco UCS API: configResolveDn often ignores inHierarchical="true"
+		// and configResolveChildren only returns direct children, missing deeply nested objects.
+		if hierarchical == "true" {
+			var bufChildren []byte
+			if class != "" {
+				// Convert to configResolveClass with wildcard filter to ensure we get all deeply nested children
+				xmlConfigResolveClass := &ConfigResolveClass{
+					Cookie:         xmlAaaLoginResp.OutCookie,
+					InHierarchical: "false",
+					ClassId:        class,
+					InFilter: &InFilter{
+						Wcard: &Wcard{Class: class, Property: "dn", Value: "^" + dn + "/.*"},
+					},
+				}
+				bufChildren, err = xml.MarshalIndent(xmlConfigResolveClass, "  ", "    ")
+				if err != nil {
+					log.Printf("xmlConfigResolveClass marshal error: %s\n", err)
+				}
+			} else {
+				xmlConfigResolveChildren := &ConfigResolveChildren{Cookie: xmlAaaLoginResp.OutCookie, InHierarchical: "true", InDn: dn}
+				bufChildren, err = xml.Marshal(xmlConfigResolveChildren)
+				if err != nil {
+					log.Printf("xmlConfigResolveChildren marshal error: %s\n", err)
+				}
+			}
+
+			resultChildren := re.ReplaceAllString(string(bufChildren), " />")
+			debugPrintf(3, "children request: %s\n", resultChildren)
+			dataChildren := bytes.NewBuffer([]byte(resultChildren))
+			respChildren, err := client.Post(url, "text/xml", dataChildren)
+			if err != nil {
+				fmt.Printf("error: %v", err)
+				os.Exit(3)
+			}
+			defer respChildren.Body.Close()
+			bodyChildren, err := io.ReadAll(respChildren.Body)
+			debugPrintf(2, "configResolveChildren response: %s\n", bodyChildren)
+
+			body = append(body, bodyChildren...)
+		}
 	}
 
 	// "defer logout" not working ? ... so:
 	logout(client, url, xmlAaaLoginResp.OutCookie)
+
+	// Wrap the XML body in a root tag to allow xml.NewDecoder to parse multiple concatenated documents (body + bodyChildren)
+	reXmlDecl := regexp.MustCompile(`(?i)<\?xml[^>]*\?>`)
+	cleanBody := reXmlDecl.ReplaceAllString(string(body), "")
+	body = []byte("<root>" + cleanBody + "</root>")
+
+	if listDns || listClasses {
+		dnMap := make(map[string]bool)
+		classMap := make(map[string]bool)
+		var dns []string
+		var classes []string
+		decoder := xml.NewDecoder(bytes.NewBuffer(body))
+		for {
+			token, err := decoder.Token()
+			if err != nil {
+				break
+			}
+			if t, ok := token.(xml.StartElement); ok {
+				if t.Name.Local == "configResolveClass" || t.Name.Local == "configResolveDn" || t.Name.Local == "configResolveChildren" || t.Name.Local == "outConfig" || t.Name.Local == "outConfigs" || t.Name.Local == "root" {
+					continue
+				}
+				if listClasses {
+					if !classMap[t.Name.Local] {
+						classMap[t.Name.Local] = true
+						classes = append(classes, t.Name.Local)
+					}
+				}
+				if listDns {
+					for _, attr := range t.Attr {
+						if attr.Name.Local == "dn" {
+							if !dnMap[attr.Value] {
+								dnMap[attr.Value] = true
+								dns = append(dns, attr.Value)
+							}
+						}
+					}
+				}
+			}
+		}
+		if listClasses {
+			fmt.Printf("Gefundene Klassen (%d):\n", len(classes))
+			sort.Strings(classes)
+			for _, val := range classes {
+				fmt.Println(val)
+			}
+		}
+		if listDns {
+			fmt.Printf("Gefundene DN-Pfade (%d):\n", len(dns))
+			sort.Strings(dns)
+			for _, val := range dns {
+				fmt.Println(val)
+			}
+		}
+		os.Exit(0)
+	}
 
 	r, n := getXmlAttr(string(body), class, attributeArray)
 	debugPrintf(3, "result: %v counter: %d\n", r, n)
