@@ -87,10 +87,12 @@ todo:
 flags:
 ------
 
- 	-H <ip_addr>		CIMC IP address or Cisco UCS Manager IP address"
- 	-t <query_type>		query type 'dn' or 'class'"
+ 	-H <ip_addr>		CIMC IP address or Cisco UCS Manager IP address
+ 	-t <query_type>		query type 'dn' or 'class'
  	-q <dn_or_class>	XML API object class name, examples: storageVirtualDrive or storageLocalDisk or storageControllerProps
  						Distinguished Name (DN) name, examples: "sys/rack-unit-1"
+ 						for DNs and Classes see 'UCS Manager Object Browser' http://<ucs-manager-ip>/visore.html
+ 						and 'UCS Manager Object Documentation' https://developer.cisco.com/site/ucs-mim-ref-api-picker
  	-o <object>			if XML API object class name, examples: storageVirtualDrive or storageLocalDisk or storageControllerProp
  	-s <hierarchical>	true or false. If true, the inHierarchical argument returns all child objects
  	-a <attributes>		space separated list of XML attributes for display in nagios output and match against *expect* string
@@ -100,10 +102,13 @@ flags:
 	-d <level>			print debug, level: 1 errors only, 2 warnings and 3 informational messages
 	-E					print environment variables for debug purpose
 	-V					print plugin version
+	-P <proxy_url>		proxy URL
 	-z					true or false. if set to true the check will return OK status if zero instances where found. Default is false.
 	-F					display only faults in output
-	-M <tls_verson>		max TLS version, default: 1.1, alternative: 1.2
-	-f					property filter <type>:<property>:<value>, works only with query type class (-t class), examples: wcard:dn:^sys/chassis-[1-3].*
+	-M <tls_version>	used TLS version, default: 1.2 (options: 1.1, 1.2, 1.3)
+	-f					property filter <type>:<property>:<value>, works only with query type class (-t class), example: wcard:dn:^sys/chassis-[1-3].*
+	-C					list class names of the queried objects and exit
+	-l 					list DN paths of the queried objects and exit
 
 
 usage examples:
